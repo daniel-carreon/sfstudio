@@ -9,14 +9,35 @@ import {
   defaultRoots, makeId, resolveId, scanRoots, launchState, postState, coverThumb,
   parseTextTranscript, parseChapters, extractDescription, extractPostBody,
   listThumbs, resolveThumb, readCard, readDossier, applyGalleryPatch,
+  rootLabel, findMaster,
 } from '../lib/gallery.js';
 
 // ---------- raíces e identidad ----------
-test('defaultRoots: default bajo business-os, override por SFSTUDIO_ROOTS', () => {
+test('defaultRoots: una raíz POR FILA, en orden, override por SFSTUDIO_ROOTS', () => {
+  // ⭐ 28 ago: cada raíz es una FILA de la galería y este orden es el orden en que se apilan.
   const d = defaultRoots({}, '/Users/x');
-  assert.equal(d.length, 2);
-  assert.ok(d[0].endsWith('/Developer/business-os/youtube/videos'));
+  assert.equal(d.length, 4);
+  assert.deepEqual(d.map(rootLabel), ['Proyectos', 'Videos', 'Referencias', 'Generados']);
+  assert.ok(d[0].endsWith('/Developer/business-os/youtube/proyectos'));
+  assert.ok(d[1].endsWith('/Developer/business-os/youtube/videos'));
   assert.deepEqual(defaultRoots({ SFSTUDIO_ROOTS: '/a,/b' }, '/Users/x'), ['/a', '/b']);
+});
+
+test('findMaster: manda el nombre que DECLARA entrega, no un intermedio', async (t) => {
+  const { mkdtemp, mkdir, writeFile } = await import('node:fs/promises');
+  const os2 = await import('node:os'); const path2 = await import('node:path');
+  const d = await mkdtemp(path2.join(os2.tmpdir(), 'gal-'));
+  const toca = async (rel) => {
+    await mkdir(path2.dirname(path2.join(d, rel)), { recursive: true });
+    await writeFile(path2.join(d, rel), 'x');
+  };
+  await toca('edit/corte.mp4'); await toca('edit/base.mp4');
+  assert.equal(await findMaster(d), 'edit/base.mp4');          // sin entrega: cae a un video de edit/
+  await toca('var5/edit/v6.mp4'); await toca('var5/edit/v5.mp4');
+  assert.equal(await findMaster(d), 'var5/edit/v6.mp4');       // gana v<N> más alto, en cualquier variante
+  await toca('edit/_wip/v99.mp4');
+  assert.equal(await findMaster(d), 'var5/edit/v6.mp4');       // ⛔ _wip nunca entra
+  assert.equal(await findMaster(path2.join(d, 'nope')), null);
 });
 
 test('resolveId: resuelve dentro de la raíz y RECHAZA traversal', () => {

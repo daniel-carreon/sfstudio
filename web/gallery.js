@@ -123,12 +123,15 @@ function renderGrid() {
     : items;
   if (!list.length) {
     box.innerHTML = `<div class="galEmpty">${items.length
-      ? 'ningún lanzamiento coincide con la búsqueda.'
-      : 'sin lanzamientos todavía.<br>Un lanzamiento es una carpeta con <code>publish.json</code> bajo las raíces de arriba — lo crea <code>sfpublish &lt;proyecto&gt; init</code>.'}</div>`;
+      ? 'ningún proyecto coincide con la búsqueda.'
+      : 'sin proyectos todavía.<br>Entra cualquier carpeta bajo las raíces de arriba que tenga <code>publish.json</code> <em>o</em> un máster reproducible.'}</div>`;
     return;
   }
   const esc = deps.escapeHtml;
-  box.innerHTML = list.map((it) => {
+  // ⭐ 28 ago — UNA FILA POR RAÍZ, en el orden en que `defaultRoots()` las declara.
+  //    Antes era una sola rejilla revuelta ordenada por fecha de toque: los proyectos en curso y
+  //    los videos ya exportados se mezclaban y no había forma de decir "abre la v3".
+  const card = (it) => {
     const cover = it.cover
       ? `<img src="/gallery/thumb?id=${encodeURIComponent(it.id)}&f=${encodeURIComponent(it.cover)}" alt="${esc(it.cover)}" loading="lazy">`
       : '<div class="galNoCover">sin miniatura</div>';
@@ -138,12 +141,26 @@ function renderGrid() {
         <h4>${esc(it.titulo || it.name)}</h4>
         <div class="galCardSub">${esc(it.name)}${it.slug ? ` · ${esc(it.slug)}` : ''}</div>
         <div class="galChips">
-          <span class="galChip ${it.launch?.tone || 'idle'}">${esc(it.launch?.label || '—')}</span>
-          <span class="galChip ${it.post?.tone || 'idle'}">${esc(it.post?.label || '—')}</span>
+          ${it.kind === 'trabajo'
+            ? `<span class="galChip idle">${it.master ? 'con máster · sin lanzamiento' : 'sin máster'}</span>`
+            : `<span class="galChip ${it.launch?.tone || 'idle'}">${esc(it.launch?.label || '—')}</span>
+               <span class="galChip ${it.post?.tone || 'idle'}">${esc(it.post?.label || '—')}</span>`}
         </div>
       </div>
     </article>`;
-  }).join('');
+  };
+  const filas = [];
+  for (const it of list) {
+    const k = it.root_label || 'Otros';
+    let f = filas.find((x) => x.k === k);
+    if (!f) { f = { k, items: [] }; filas.push(f); }
+    f.items.push(it);
+  }
+  box.innerHTML = filas.map((f) => `
+    <section class="galFila">
+      <h3 class="galFilaTit">${esc(f.k)} <span class="galFilaN">${f.items.length}</span></h3>
+      <div class="galFilaGrid">${f.items.map(card).join('')}</div>
+    </section>`).join('');
 }
 
 // ---------- ficha ----------
@@ -334,6 +351,12 @@ function renderDetail(it) {
     </nav>
     <div class="galDetGrid">
       <section class="galSec" data-sec="portada">
+        ${it.master ? `<h3>El máster <span class="galHmeta">${esc(it.master)}</span></h3>
+        <div class="galPlayer">
+          <video controls preload="metadata" playsinline
+                 src="/gallery/media?id=${encodeURIComponent(it.id)}&f=${encodeURIComponent(it.master)}"></video>
+          <div class="galPlayerSub">se reproduce desde el disco, sin copiar nada</div>
+        </div>` : ''}
         <h3>Portada${it.cover ? `<button class="galMini" data-big="${esc(it.cover)}" title="verla a tamaño real (F)">⤢ ver grande</button>` : ''}</h3>
         <div class="galCoverBig"${it.cover ? ` data-big="${esc(it.cover)}" title="click = verla a tamaño real"` : ''}>${cover}</div>
         <div class="galCoverName">${it.cover ? esc(it.cover) + (it.cover_chosen ? ' · elegida' : ' · automática (elige una abajo)') : ''}</div>

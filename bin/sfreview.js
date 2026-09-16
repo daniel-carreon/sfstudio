@@ -13,7 +13,7 @@ import { spawn } from 'node:child_process';
 import { startStatic, serveFile, insideRoot } from '../lib/static-server.js';
 import { STAGES, STAGE_COMMANDS, parseTranscript, segmentTranscript, applyEdl } from '../lib/publish.js';
 import {
-  defaultRoots, scanRoots, resolveId, readCard, readDossier, applyGalleryPatch,
+  defaultRoots, scanRoots, resolveId, readCard, readDossier, applyGalleryPatch, findMaster,
   computeTranscriptFor, listThumbs,
 } from '../lib/gallery.js';
 
@@ -59,7 +59,14 @@ if (projectDir) {
 async function galleryEntry(id) {
   const r = resolveId(roots, id);
   if (!r) return null;
-  try { await fsp.access(path.join(r.dir, 'publish.json')); } catch { return null; }
+  // ⛔ El resolvedor tiene que aceptar EXACTAMENTE lo mismo que `scanRoots`, o la rejilla lista
+  //    proyectos cuya ficha después da 404. Pasó el 28 ago con la fila `referencias/`: la v3
+  //    aparecía en la galería y su máster devolvía 404 porque aquí seguía exigiéndose
+  //    publish.json. Un catálogo y su resolvedor comparten criterio o mienten.
+  let ok = false;
+  try { await fsp.access(path.join(r.dir, 'publish.json')); ok = true; } catch { /* trabajo, no lanzamiento */ }
+  if (!ok) ok = !!(await findMaster(r.dir));
+  if (!ok) return null;
   return { id, dir: r.dir, name: r.name, root: roots[r.rootIdx] };
 }
 
@@ -323,12 +330,30 @@ try {
           try { items.push(await readCard(e, now)); }
           catch (err) { items.push({ id: e.id, name: e.name, dir: e.dir, error: err.message }); }
         }
-        items.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || '') || a.name.localeCompare(b.name));
+        // ⭐ 28 ago: PRIMERO por raíz (el orden de `defaultRoots()` = el orden de las filas), y
+        //    DENTRO de cada fila por lo más tocado. Antes era un solo orden global por fecha, así
+        //    que la fila que salía arriba dependía de qué proyecto se había tocado ese día.
+        const ri = (it) => { const k = roots.indexOf(it.root); return k < 0 ? 99 : k; };
+        items.sort((a, b) => ri(a) - ri(b)
+          || (b.updated_at || '').localeCompare(a.updated_at || '')
+          || a.name.localeCompare(b.name));
         json(res, 200, { roots, count: items.length, items, open: projectDir || null });
       } catch (e) {
         json(res, 500, { error: e.message, roots, items: [] });
       }
     },
+    // ⭐ 28 ago: el máster de CUALQUIER proyecto de la galería, con Range. Es lo que permite que
+    //    Daniel vuelva a mirar la v3 (o un referente) sin pedirme que se la abra.
+    '/gallery/media': async (req, res) => {
+      const u = new URL(req.url, 'http://x');
+      const entry = await galleryEntry(u.searchParams.get('id'));
+      const f = u.searchParams.get('f') || '';
+      if (!entry || !f || f.includes('..')) { res.writeHead(404); res.end('404'); return; }
+      const fp = path.normalize(path.join(entry.dir, f));
+      if (!insideRoot(entry.dir, fp)) { res.writeHead(403); res.end('403'); return; }
+      await serveFile(req, res, fp);
+    },
+
     '/gallery/thumb': async (req, res) => {
       const u = new URL(req.url, 'http://x');
       const entry = await galleryEntry(u.searchParams.get('id'));
