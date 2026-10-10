@@ -18,8 +18,8 @@ test('defaultRoots: una raíz POR FILA, en orden, override por SFSTUDIO_ROOTS', 
   const d = defaultRoots({}, '/Users/x');
   assert.equal(d.length, 4);
   assert.deepEqual(d.map(rootLabel), ['Proyectos', 'Videos', 'Referencias', 'Generados']);
-  assert.ok(d[0].endsWith('/Developer/business-os/youtube/proyectos'));
-  assert.ok(d[1].endsWith('/Developer/business-os/youtube/videos'));
+  assert.ok(d[0].endsWith('/Developer/business-os/contenido/youtube/proyectos'));
+  assert.ok(d[1].endsWith('/Developer/business-os/contenido/youtube/videos'));
   assert.deepEqual(defaultRoots({ SFSTUDIO_ROOTS: '/a,/b' }, '/Users/x'), ['/a', '/b']);
 });
 

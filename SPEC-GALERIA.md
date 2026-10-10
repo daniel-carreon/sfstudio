@@ -58,7 +58,7 @@ sugerencia descartable, NO requisito, salvo la sección RESTRICCIONES.
 
 Un lanzamiento = una carpeta con `publish.json`. Las raíces a escanear:
 
-- `~/Developer/business-os/youtube/videos/*/`
+- `~/Developer/business-os/contenido/youtube/videos/*/`
 - `~/Developer/business-os/agent-server/workspace/generated/*/`
 
 De cada proyecto salen: `publish.json` (metadata, thumbs, post_draft, launch, stages), las miniaturas

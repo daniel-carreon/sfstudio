@@ -107,7 +107,7 @@ miniaturas candidatas y el post de comunidad). `lib/gallery.js` = modelo puro (c
 `web/gallery.js` = la vista; `bin/sfreview.js` sirve `/api/gallery`.
 
 - **Un lanzamiento = una carpeta con `publish.json`** bajo las RAÍCES (`--roots`, o
-  `SFSTUDIO_ROOTS`, o el default: `business-os/youtube/videos` + `agent-server/workspace/generated`).
+  `SFSTUDIO_ROOTS`, o el default: `business-os/contenido/youtube/videos` + `agent-server/workspace/generated`).
   El histórico del canal NO entra: solo lo que pasó por el pipeline.
 - **`publish.json` sigue siendo la fuente de verdad.** La galería lo lee y lo escribe (mismo
   `savePublish` atómico que el CLI); no hay modelo paralelo. Los campos que agrega:
